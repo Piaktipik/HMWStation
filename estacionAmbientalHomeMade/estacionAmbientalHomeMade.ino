@@ -3,6 +3,11 @@
 #include <DHT.h>
 #include <SFE_BMP180.h>
 #include <Wire.h>
+//#include "Wire.h"
+#include "SparkFunIMU.h"
+#include "SparkFunLSM303C.h"
+#include "LSM303CTypes.h"
+
 
 // ------------------------------------- Parametros -------------------------------------
 #define ALTITUDE 1651.0 // Altitude of SparkFun's HQ in Boulder, CO. in meters
@@ -11,10 +16,15 @@
 int sensor = 2;
 int temp, humedad;
 int gota = 0;
+boolean datosLimpios = true;
+char status;
+double T, P, p0, a;
+unsigned long tiempoA = 0;
 
 // ------------------------------------- Declaraciones de clases  -------------------------------------
 DHT dht (sensor, DHT11);
 SFE_BMP180 pressure;
+LSM303C myIMU;
 
 // ------------------------------------- Configuraciones -------------------------------------
 void setup () {
@@ -33,128 +43,164 @@ void setup () {
     while (1); // Pause forever.
   }
 
+  // inicializacion IMU
+  if (myIMU.begin() != IMU_SUCCESS)
+  {
+    Serial.println("Failed setup.");
+    while (1);
+  }
+
 }
 
 // ------------------------------------- Ciclo -------------------------------------
 void loop() {
+  if (datosLimpios) {
+    Serial.print("C");
+    Serial.print(millis());
+  } else {
+    Serial.println("Tiempo");
+    Serial.println(millis());
+  }
+  
   humedad = dht.readHumidity();
   temp = dht.readTemperature();
 
-  Serial.print("temD:" );
-  Serial.print(temp);
-  Serial.print(" hume:");
-  Serial.print(humedad);
-  Serial.print("% ");
-
-  char status;
-  double T, P, p0, a;
-
-  // Loop here getting pressure readings every 10 seconds.
-
-  // If you want sea-level-compensated pressure, as used in weather reports,
-  // you will need to know the altitude at which your measurements are taken.
-  // We're using a constant called ALTITUDE in this sketch:
-
-  //Serial.println();
-  //Serial.print("provided altitude: ");
-  //Serial.print(ALTITUDE, 0);
-  //Serial.print(" meters, ");
-  //Serial.print(ALTITUDE * 3.28084, 0);
-  //Serial.println(" feet");
-
-  // If you want to measure altitude, and not pressure, you will instead need
-  // to provide a known baseline pressure. This is shown at the end of the sketch.
-
-  // You must first get a temperature measurement to perform a pressure reading.
-
-  // Start a temperature measurement:
-  // If request is successful, the number of ms to wait is returned.
-  // If request is unsuccessful, 0 is returned.
+  if (datosLimpios) {
+    Serial.print("T");
+    Serial.print(temp);
+    Serial.print("H");
+    Serial.print(humedad);
+  } else {
+    Serial.println("DHT11" );
+    Serial.print(" Temperatura: " );
+    Serial.print(temp);
+    Serial.print(" Humedad: ");
+    Serial.print(humedad);
+    Serial.println("%");
+  }
 
   status = pressure.startTemperature();
-  if (status != 0)
-  {
-    // Wait for the measurement to complete:
+  if (status != 0) {
     delay(status);
-
-    // Retrieve the completed temperature measurement:
-    // Note that the measurement is stored in the variable T.
-    // Function returns 1 if successful, 0 if failure.
-
     status = pressure.getTemperature(T);
-    if (status != 0)
-    {
+    if (status != 0) {
       // Print out the measurement:
-      Serial.print(" temB: ");
-      Serial.print(T, 2);
-      //Serial.print(" deg C, ");
-      //Serial.print((9.0 / 5.0)*T + 32.0, 2);
-      //Serial.println(" deg F ");
-
-      // Start a pressure measurement:
-      // The parameter is the oversampling setting, from 0 to 3 (highest res, longest wait).
-      // If request is successful, the number of ms to wait is returned.
-      // If request is unsuccessful, 0 is returned.
+      if (datosLimpios) {
+        Serial.print("T");
+        Serial.print(T, 2);
+      } else {
+        Serial.println("Barometro");
+        Serial.print(" Temperatura: ");
+        Serial.print(T, 2);
+      }
 
       status = pressure.startPressure(3);
-      if (status != 0)
-      {
-        // Wait for the measurement to complete:
+      if (status != 0) {
         delay(status);
 
-        // Retrieve the completed pressure measurement:
-        // Note that the measurement is stored in the variable P.
-        // Note also that the function requires the previous temperature measurement (T).
-        // (If temperature is stable, you can do one temperature measurement for a number of pressure measurements.)
-        // Function returns 1 if successful, 0 if failure.
-
         status = pressure.getPressure(P, T);
-        if (status != 0)
-        {
-          // Print out the measurement:
-          Serial.print(" Apre: ");
-          Serial.print(P, 2);
-          Serial.print(" mb ");
-          //Serial.print(P * 0.0295333727, 2);
-          //Serial.println(" inHg ");
-
-          // The pressure sensor returns abolute pressure, which varies with altitude.
-          // To remove the effects of altitude, use the sealevel function and your current altitude.
-          // This number is commonly used in weather reports.
-          // Parameters: P = absolute pressure in mb, ALTITUDE = current altitude in m.
-          // Result: p0 = sea-level compensated pressure in mb
+        if (status != 0) {
+          if (datosLimpios) {
+            Serial.print("P");
+            Serial.print(P, 2);
+          } else {
+            Serial.print(" Presion Absoluta: ");
+            Serial.print(P, 2);
+            Serial.print("mb");
+          }
 
           p0 = pressure.sealevel(P, ALTITUDE); // we're at 1651 meters (Boulder, CO)
-          Serial.print(" Rpre: ");
-          Serial.print(p0, 2);
-          Serial.print(" mb ");
-          //Serial.print(p0 * 0.0295333727, 2);
-          //Serial.println(" inHg");
-
-          // On the other hand, if you want to determine your altitude from the pressure reading,
-          // use the altitude function along with a baseline pressure (sea-level or other).
-          // Parameters: P = absolute pressure in mb, p0 = baseline pressure in mb.
-          // Result: a = altitude in m.
+          if (datosLimpios) {
+            Serial.print("R");
+            Serial.print(p0, 2);
+          } else {
+            Serial.print(" Presion Relativa: ");
+            Serial.print(p0, 2);
+            Serial.print("mb");
+          }
 
           a = pressure.altitude(P, p0);
-          Serial.print("Alti: ");
-          Serial.print(a, 0);
-          Serial.print(" m");
-          //Serial.print(a * 3.28084, 0);
-          //Serial.println(" feet");
+          if (datosLimpios) {
+            Serial.print("A");
+            Serial.print(a, 0);
+          } else {
+            Serial.print(" Altitud: ");
+            Serial.print(a, 0);
+            Serial.println("m");
+          }
         }
-        else Serial.println("error retrieving pressure measurement\n");
+        else if (!datosLimpios) {
+          Serial.println("error retrieving pressure measurement\n");
+        }
       }
-      else Serial.println("error starting pressure measurement\n");
+      else if (!datosLimpios) {
+        Serial.println("error starting pressure measurement\n");
+      }
     }
-    else Serial.println("error retrieving temperature measurement\n");
+    else if (!datosLimpios) {
+      Serial.println("error retrieving temperature measurement\n");
+    }
   }
-  else Serial.println("error starting temperature measurement\n");
+  else if (!datosLimpios) {
+    Serial.println("error starting temperature measurement\n");
+  }
 
 
   gota = analogRead(A1);
-  Serial.print(" gota: ");
-  Serial.println(gota);
+  if (datosLimpios) {
+    Serial.print("G");
+    Serial.print(gota);
+  } else {
+    Serial.println(" gota: ");
+    Serial.println(gota);
+  }
 
-  delay(500);
+  // Get all parameters
+  if (datosLimpios) {
+    Serial.print("X");
+    Serial.print(myIMU.readAccelX(), 4);
+    Serial.print("Y");
+    Serial.print(myIMU.readAccelY(), 4);
+    Serial.print("Z");
+    Serial.print(myIMU.readAccelZ(), 4);
+
+    Serial.print("X");
+    Serial.print(myIMU.readMagX(), 4);
+    Serial.print("Y");
+    Serial.print(myIMU.readMagY(), 4);
+    Serial.print("Z");
+    Serial.print(myIMU.readMagZ(), 4);
+
+    Serial.print("T");
+    Serial.println(myIMU.readTempC(), 4);
+  } else {
+    Serial.println(" IMU: ");
+    Serial.print(" AX: ");
+    Serial.print(myIMU.readAccelX(), 4);
+    Serial.print(" AY: ");
+    Serial.print(myIMU.readAccelY(), 4);
+    Serial.print(" AZ: ");
+    Serial.print(myIMU.readAccelZ(), 4);
+
+    Serial.print(" MX: ");
+    Serial.print(myIMU.readMagX(), 4);
+    Serial.print(" MY: ");
+    Serial.print(myIMU.readMagY(), 4);
+    Serial.print(" MZ: ");
+    Serial.print(myIMU.readMagZ(), 4);
+
+    Serial.print(" Tem3: ");
+    Serial.println(myIMU.readTempC(), 4);
+  }
+
+  // Cambiamos modo de visualizacion
+  if (Serial.available() > 1) {
+    if (Serial.read() == 'v') {
+      datosLimpios = !datosLimpios;
+    }
+  }
+
+  // Esperamos a que pase un segundo para iniciar nueva captura:
+  while (tiempoA + 999 >= millis()) {}
+  tiempoA = millis();
 }

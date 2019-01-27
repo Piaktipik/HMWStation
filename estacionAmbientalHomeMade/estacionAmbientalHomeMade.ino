@@ -7,6 +7,7 @@
 #include "SparkFunIMU.h"
 #include "SparkFunLSM303C.h"
 #include "LSM303CTypes.h"
+// libreria SD
 
 
 // ------------------------------------- Parametros -------------------------------------
@@ -19,7 +20,9 @@ int gota = 0;
 boolean datosLimpios = true;
 char status;
 double T, P, p0, a;
+double PBase = 1023.4; //Baseline presure
 unsigned long tiempoA = 0;
+double baseline; // baseline pressure
 
 // ------------------------------------- Declaraciones de clases  -------------------------------------
 DHT dht (sensor, DHT11);
@@ -34,20 +37,27 @@ void setup () {
   // Initialize the sensor (it is important to get calibration values stored on the device).
   if (pressure.begin())
     Serial.println("BMP180 init success");
+
+    // Get the baseline pressure:
+//    baseline = getPressure();
+//    
+//    Serial.print("baseline pressure: ");
+//    Serial.print(baseline);
+//    Serial.println(" mb"); 
   else
   {
     // Oops, something went wrong, this is usually a connection problem,
     // see the comments at the top of this sketch for the proper connections.
 
     Serial.println("BMP180 init fail\n\n");
-    while (1); // Pause forever.
+    //while (1); // Pause forever.
   }
 
   // inicializacion IMU
   if (myIMU.begin() != IMU_SUCCESS)
   {
     Serial.println("Failed setup.");
-    while (1);
+    //while (1);
   }
 
 }
@@ -61,7 +71,7 @@ void loop() {
     Serial.println("Tiempo");
     Serial.println(millis());
   }
-  
+
   humedad = dht.readHumidity();
   temp = dht.readTemperature();
 
@@ -109,17 +119,7 @@ void loop() {
             Serial.print("mb");
           }
 
-          p0 = pressure.sealevel(P, ALTITUDE); // we're at 1651 meters (Boulder, CO)
-          if (datosLimpios) {
-            Serial.print("R");
-            Serial.print(p0, 2);
-          } else {
-            Serial.print(" Presion Relativa: ");
-            Serial.print(p0, 2);
-            Serial.print("mb");
-          }
-
-          a = pressure.altitude(P, p0);
+          a = pressure.altitude(P, PBase);
           if (datosLimpios) {
             Serial.print("A");
             Serial.print(a, 0);
@@ -128,6 +128,7 @@ void loop() {
             Serial.print(a, 0);
             Serial.println("m");
           }
+          
         }
         else if (!datosLimpios) {
           Serial.println("error retrieving pressure measurement\n");

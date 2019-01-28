@@ -8,21 +8,32 @@
 #include "SparkFunLSM303C.h"
 #include "LSM303CTypes.h"
 // libreria SD
-
+#include <SPI.h>
+#include <SD.h>
 
 // ------------------------------------- Parametros -------------------------------------
-#define ALTITUDE 1651.0 // Altitude of SparkFun's HQ in Boulder, CO. in meters
+#define LedSD_PIN 13
+//////////////////////////// BAROMETRO
+#define PBase 1023.4 // Baseline presure
+
+//////////////////////////// SD
+#define chipSelect 38
+
 
 // ------------------------------------- Variables -------------------------------------
 int sensor = 2;
 int temp, humedad;
 int gota = 0;
 boolean datosLimpios = true;
+
+//////////////////////////// BAROMETRO
 char status;
 double T, P, p0, a;
-double PBase = 1023.4; //Baseline presure
 unsigned long tiempoA = 0;
-double baseline; // baseline pressure
+
+//////////////////////////// SD
+File dataFile;
+bool sd_ok = false;
 
 // ------------------------------------- Declaraciones de clases  -------------------------------------
 DHT dht (sensor, DHT11);
@@ -32,23 +43,14 @@ LSM303C myIMU;
 // ------------------------------------- Configuraciones -------------------------------------
 void setup () {
   Serial.begin (9600);
+
   dht.begin();
 
   // Initialize the sensor (it is important to get calibration values stored on the device).
   if (pressure.begin())
     Serial.println("BMP180 init success");
-
-    // Get the baseline pressure:
-//    baseline = getPressure();
-//    
-//    Serial.print("baseline pressure: ");
-//    Serial.print(baseline);
-//    Serial.println(" mb"); 
   else
   {
-    // Oops, something went wrong, this is usually a connection problem,
-    // see the comments at the top of this sketch for the proper connections.
-
     Serial.println("BMP180 init fail\n\n");
     //while (1); // Pause forever.
   }
@@ -60,10 +62,22 @@ void setup () {
     //while (1);
   }
 
+  // inicializacion SD
+  Serial.print("Initializing SD card...");
+  if (!SD.begin(4)) {
+    Serial.println("initialization failed!");
+    //while (1);
+  }
+
+  Serial.println("initialization done.");
 }
 
 // ------------------------------------- Ciclo -------------------------------------
 void loop() {
+  String datos = "";
+
+
+  datos += ","; datos += String(millis());
   if (datosLimpios) {
     Serial.print("C");
     Serial.print(millis());
@@ -74,7 +88,8 @@ void loop() {
 
   humedad = dht.readHumidity();
   temp = dht.readTemperature();
-
+  datos += ","; datos += String(temp);
+  datos += ","; datos += String(humedad);
   if (datosLimpios) {
     Serial.print("T");
     Serial.print(temp);
@@ -95,6 +110,7 @@ void loop() {
     status = pressure.getTemperature(T);
     if (status != 0) {
       // Print out the measurement:
+      datos += ","; datos += String(T);
       if (datosLimpios) {
         Serial.print("T");
         Serial.print(T, 2);
@@ -110,6 +126,7 @@ void loop() {
 
         status = pressure.getPressure(P, T);
         if (status != 0) {
+          datos += ","; datos += String(P);
           if (datosLimpios) {
             Serial.print("P");
             Serial.print(P, 2);
@@ -120,6 +137,7 @@ void loop() {
           }
 
           a = pressure.altitude(P, PBase);
+          datos += ","; datos += String(a);
           if (datosLimpios) {
             Serial.print("A");
             Serial.print(a, 0);
@@ -128,7 +146,7 @@ void loop() {
             Serial.print(a, 0);
             Serial.println("m");
           }
-          
+
         }
         else if (!datosLimpios) {
           Serial.println("error retrieving pressure measurement\n");
@@ -148,6 +166,7 @@ void loop() {
 
 
   gota = analogRead(A1);
+  datos += ","; datos += String(gota);
   if (datosLimpios) {
     Serial.print("G");
     Serial.print(gota);
@@ -157,6 +176,14 @@ void loop() {
   }
 
   // Get all parameters
+  datos += ","; datos += String(myIMU.readAccelX());
+  datos += ","; datos += String(myIMU.readAccelY());
+  datos += ","; datos += String(myIMU.readAccelZ());
+  datos += ","; datos += String(myIMU.readMagX());
+  datos += ","; datos += String(myIMU.readMagY());
+  datos += ","; datos += String(myIMU.readMagZ());
+  datos += ","; datos += String(myIMU.readTempC());
+
   if (datosLimpios) {
     Serial.print("X");
     Serial.print(myIMU.readAccelX(), 4);
@@ -201,7 +228,62 @@ void loop() {
     }
   }
 
+  guardarStringSD(datos, "d");
   // Esperamos a que pase un segundo para iniciar nueva captura:
   while (tiempoA + 999 >= millis()) {}
   tiempoA = millis();
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+void iniciarSd() {
+  pinMode(chipSelect, OUTPUT);
+  Serial.print(" ini.. ");
+  if (SD.begin(chipSelect)) {
+    Serial.println("OK ");
+    sd_ok = true;
+
+  } else {
+    Serial.println("Err ");
+  }
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+void guardarStringSD(String Datos, String NombreA) {
+  String nombre = NombreA;
+  nombre += String(gps_date);
+  nombre += ".csv";
+  if (sd_ok) {
+    digitalWrite(LedSD_PIN, HIGH);
+    // se guarda en la SD
+    dataFile = SD.open(nombre, FILE_WRITE);
+    // if the file is available, write to it:
+    if (dataFile) {
+      dataFile.println(Datos);
+      dataFile.flush();
+      dataFile.close();
+      // led indicador guardado en SD
+
+      // print to the serial port too:
+      //Serial.print(datos);
+      Serial.print("On: ");
+      Serial.print(nombre);
+      Serial.print(": ");
+      Serial.print(Datos);
+      //pitar(50);   //Pitido indicando que se guardo correctamente la informacion
+    }
+    // if the file isn't open, pop up an error:
+    else {
+      Serial.print("error opening:");
+      Serial.println(nombre);
+      dataFile.close();
+      sd_ok =  false;
+    }
+
+  } else {
+    iniciarSd(); // si sd no esta ok (sd_ok) tratamos de iniciarla nuevamente
+  }
+  digitalWrite(LedSD_PIN, LOW); // gurdado SD finalizado
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////

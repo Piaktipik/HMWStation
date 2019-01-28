@@ -10,6 +10,8 @@
 // libreria SD
 #include <SPI.h>
 #include <SD.h>
+// libreria GPS
+#include "gps.h"
 
 // ------------------------------------- Parametros -------------------------------------
 #define LedSD_PIN 13
@@ -19,6 +21,13 @@
 //////////////////////////// SD
 #define chipSelect 38
 
+//////////////////////////// GPS
+#define GPS_BAUDRATE  9600
+#define gpsForceOn_PIN 25
+#define gpsRESET_PIN 24
+#define GPS_timeout 2000
+#define DEBUG_GPS
+static const uint32_t VALID_POS_TIMEOUT = 2000;  // ms
 
 // ------------------------------------- Variables -------------------------------------
 int sensor = 2;
@@ -69,6 +78,17 @@ void setup () {
     //while (1);
   }
 
+  ///////////////////// Setup GPS
+  Serial1.begin(GPS_BAUDRATE);
+  Serial.print("Setup Gps...");
+  gps_setup();
+  Serial.println(" OK.");
+  // Se reseteo del GPS
+  pinMode(gpsRESET_PIN, OUTPUT);
+  digitalWrite(gpsRESET_PIN, LOW);
+  delay(50);
+  pinMode(gpsRESET_PIN, INPUT);
+
   Serial.println("initialization done.");
 }
 
@@ -76,6 +96,33 @@ void setup () {
 void loop() {
   String datos = "";
 
+  ///////////////////////////////////////////////////// Se lee el GPS
+  read_gps();
+  // Datos GPS
+  datos += String(gps_time);
+  datos += ","; datos += String(gps_lat * 10000);
+  datos += ","; datos += String(gps_lon * 10000);
+  datos += ","; datos += String(gps_altitude);
+  if (datosLimpios) {
+    Serial.print("T");
+    Serial.print(gps_time);
+    Serial.print("A");
+    Serial.print(gps_lat);
+    Serial.print("O");
+    Serial.print(gps_lon);
+    Serial.print("H");
+    Serial.print(gps_altitude);
+  } else {
+    Serial.println("GPS");
+    Serial.print("Tiempo: ");
+    Serial.print(gps_time);
+    Serial.print(" Latitud: ");
+    Serial.print(gps_lat * 10000);
+    Serial.print(" Longitud: ");
+    Serial.print(gps_lon * 10000);
+    Serial.print(" Altitud: ");
+    Serial.print(gps_altitude);
+  }
 
   datos += ","; datos += String(millis());
   if (datosLimpios) {
@@ -245,6 +292,26 @@ void iniciarSd() {
   } else {
     Serial.println("Err ");
   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+void read_gps() {
+  // Get a valid position from the GPS
+  int valid_pos = 0;
+  uint32_t timeout = millis();
+  char lecturagps;
+  Serial.println("RGPS");
+  gps_reset_parser();
+
+  do {
+    if (Serial1.available()) {
+      lecturagps = Serial1.read();
+      Serial.print(lecturagps);
+
+      valid_pos = gps_decode(lecturagps);
+    }
+  } while ( (millis() - timeout < VALID_POS_TIMEOUT) && ! valid_pos) ;
+
 }
 
 

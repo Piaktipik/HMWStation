@@ -12,6 +12,9 @@
 #include <SD.h>
 // libreria GPS
 #include "gps.h"
+// librerias LCD
+
+
 
 // ------------------------------------- Parametros -------------------------------------
 #define LedSD_PIN 13
@@ -29,6 +32,10 @@
 #define DEBUG_GPS
 static const uint32_t VALID_POS_TIMEOUT = 2000;  // ms
 
+////////////////////////////  LCD
+
+
+
 // ------------------------------------- Variables -------------------------------------
 int sensor = 2;
 int temp, humedad;
@@ -43,6 +50,8 @@ unsigned long tiempoA = 0;
 //////////////////////////// SD
 File dataFile;
 bool sd_ok = false;
+
+//////////////////////////// LCD
 
 // ------------------------------------- Declaraciones de clases  -------------------------------------
 DHT dht (sensor, DHT11);
@@ -88,6 +97,12 @@ void setup () {
   digitalWrite(gpsRESET_PIN, LOW);
   delay(50);
   pinMode(gpsRESET_PIN, INPUT);
+
+  ///////////////////// Setup LCD
+
+
+
+  
 
   Serial.println("initialization done.");
 }
@@ -276,6 +291,9 @@ void loop() {
   }
 
   guardarStringSD(datos, "d");
+
+  // Mostramos informacion por LCD
+  
   // Esperamos a que pase un segundo para iniciar nueva captura:
   while (tiempoA + 999 >= millis()) {}
   tiempoA = millis();

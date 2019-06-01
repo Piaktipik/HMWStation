@@ -41,6 +41,7 @@ int sensor = 2;
 int temp, humedad;
 int gota = 0;
 boolean datosLimpios = true;
+boolean meteoroPI = true;
 
 //////////////////////////// BAROMETRO
 char status;
@@ -102,7 +103,7 @@ void setup () {
 
 
 
-  
+
 
   Serial.println("initialization done.");
 }
@@ -118,53 +119,13 @@ void loop() {
   datos += ","; datos += String(gps_lat * 10000);
   datos += ","; datos += String(gps_lon * 10000);
   datos += ","; datos += String(gps_altitude);
-  if (datosLimpios) {
-    Serial.print("T");
-    Serial.print(gps_time);
-    Serial.print("A");
-    Serial.print(gps_lat);
-    Serial.print("O");
-    Serial.print(gps_lon);
-    Serial.print("H");
-    Serial.print(gps_altitude);
-  } else {
-    Serial.println("GPS");
-    Serial.print("Tiempo: ");
-    Serial.print(gps_time);
-    Serial.print(" Latitud: ");
-    Serial.print(gps_lat * 10000);
-    Serial.print(" Longitud: ");
-    Serial.print(gps_lon * 10000);
-    Serial.print(" Altitud: ");
-    Serial.print(gps_altitude);
-  }
 
   datos += ","; datos += String(millis());
-  if (datosLimpios) {
-    Serial.print("C");
-    Serial.print(millis());
-  } else {
-    Serial.println("Tiempo");
-    Serial.println(millis());
-  }
 
   humedad = dht.readHumidity();
   temp = dht.readTemperature();
   datos += ","; datos += String(temp);
   datos += ","; datos += String(humedad);
-  if (datosLimpios) {
-    Serial.print("T");
-    Serial.print(temp);
-    Serial.print("H");
-    Serial.print(humedad);
-  } else {
-    Serial.println("DHT11" );
-    Serial.print(" Temperatura: " );
-    Serial.print(temp);
-    Serial.print(" Humedad: ");
-    Serial.print(humedad);
-    Serial.println("%");
-  }
 
   status = pressure.startTemperature();
   if (status != 0) {
@@ -173,14 +134,6 @@ void loop() {
     if (status != 0) {
       // Print out the measurement:
       datos += ","; datos += String(T);
-      if (datosLimpios) {
-        Serial.print("T");
-        Serial.print(T, 2);
-      } else {
-        Serial.println("Barometro");
-        Serial.print(" Temperatura: ");
-        Serial.print(T, 2);
-      }
 
       status = pressure.startPressure(3);
       if (status != 0) {
@@ -189,25 +142,10 @@ void loop() {
         status = pressure.getPressure(P, T);
         if (status != 0) {
           datos += ","; datos += String(P);
-          if (datosLimpios) {
-            Serial.print("P");
-            Serial.print(P, 2);
-          } else {
-            Serial.print(" Presion Absoluta: ");
-            Serial.print(P, 2);
-            Serial.print("mb");
-          }
 
           a = pressure.altitude(P, PBase);
           datos += ","; datos += String(a);
-          if (datosLimpios) {
-            Serial.print("A");
-            Serial.print(a, 0);
-          } else {
-            Serial.print(" Altitud: ");
-            Serial.print(a, 0);
-            Serial.println("m");
-          }
+
 
         }
         else if (!datosLimpios) {
@@ -229,13 +167,6 @@ void loop() {
 
   gota = analogRead(A1);
   datos += ","; datos += String(gota);
-  if (datosLimpios) {
-    Serial.print("G");
-    Serial.print(gota);
-  } else {
-    Serial.println(" gota: ");
-    Serial.println(gota);
-  }
 
   // Get all parameters
   datos += ","; datos += String(myIMU.readAccelX());
@@ -246,54 +177,124 @@ void loop() {
   datos += ","; datos += String(myIMU.readMagZ());
   datos += ","; datos += String(myIMU.readTempC());
 
-  if (datosLimpios) {
-    Serial.print("X");
-    Serial.print(myIMU.readAccelX(), 4);
-    Serial.print("Y");
-    Serial.print(myIMU.readAccelY(), 4);
-    Serial.print("Z");
-    Serial.print(myIMU.readAccelZ(), 4);
-
-    Serial.print("X");
-    Serial.print(myIMU.readMagX(), 4);
-    Serial.print("Y");
-    Serial.print(myIMU.readMagY(), 4);
-    Serial.print("Z");
-    Serial.print(myIMU.readMagZ(), 4);
-
-    Serial.print("T");
-    Serial.println(myIMU.readTempC(), 4);
-  } else {
-    Serial.println(" IMU: ");
-    Serial.print(" AX: ");
-    Serial.print(myIMU.readAccelX(), 4);
-    Serial.print(" AY: ");
-    Serial.print(myIMU.readAccelY(), 4);
-    Serial.print(" AZ: ");
-    Serial.print(myIMU.readAccelZ(), 4);
-
-    Serial.print(" MX: ");
-    Serial.print(myIMU.readMagX(), 4);
-    Serial.print(" MY: ");
-    Serial.print(myIMU.readMagY(), 4);
-    Serial.print(" MZ: ");
-    Serial.print(myIMU.readMagZ(), 4);
-
-    Serial.print(" Tem3: ");
-    Serial.println(myIMU.readTempC(), 4);
-  }
-
   // Cambiamos modo de visualizacion
   if (Serial.available() > 1) {
     if (Serial.read() == 'v') {
       datosLimpios = !datosLimpios;
     }
   }
+  if (meteoroPI) {
+    Serial.print('T');
+    Serial.println(datos);
+  }
+  else {
+    if (datosLimpios) {
+      Serial.print("T");
+      Serial.print(gps_time);
+      Serial.print("A");
+      Serial.print(gps_lat);
+      Serial.print("O");
+      Serial.print(gps_lon);
+      Serial.print("H");
+      Serial.print(gps_altitude);
+
+      Serial.print("C");
+      Serial.print(millis());
+
+      Serial.print("T");
+      Serial.print(temp);
+      Serial.print("H");
+      Serial.print(humedad);
+
+      Serial.print("T");
+      Serial.print(T, 2);
+
+      Serial.print("P");
+      Serial.print(P, 2);
+
+      Serial.print("A");
+      Serial.print(a, 0);
+
+      Serial.print("G");
+      Serial.print(gota);
+
+      Serial.print("X");
+      Serial.print(myIMU.readAccelX(), 4);
+      Serial.print("Y");
+      Serial.print(myIMU.readAccelY(), 4);
+      Serial.print("Z");
+      Serial.print(myIMU.readAccelZ(), 4);
+
+      Serial.print("X");
+      Serial.print(myIMU.readMagX(), 4);
+      Serial.print("Y");
+      Serial.print(myIMU.readMagY(), 4);
+      Serial.print("Z");
+      Serial.print(myIMU.readMagZ(), 4);
+
+      Serial.print("T");
+      Serial.println(myIMU.readTempC(), 4);
+
+    } else {
+      Serial.println("GPS");
+      Serial.print("Tiempo: ");
+      Serial.print(gps_time);
+      Serial.print(" Latitud: ");
+      Serial.print(gps_lat * 10000);
+      Serial.print(" Longitud: ");
+      Serial.print(gps_lon * 10000);
+      Serial.print(" Altitud: ");
+      Serial.print(gps_altitude);
+
+      Serial.println("Tiempo");
+      Serial.println(millis());
+
+      Serial.println("DHT11" );
+      Serial.print(" Temperatura: " );
+      Serial.print(temp);
+      Serial.print(" Humedad: ");
+      Serial.print(humedad);
+      Serial.println("%");
+
+      Serial.println("Barometro");
+      Serial.print(" Temperatura: ");
+      Serial.print(T, 2);
+
+      Serial.print(" Presion Absoluta: ");
+      Serial.print(P, 2);
+      Serial.print("mb");
+
+      Serial.print(" Altitud: ");
+      Serial.print(a, 0);
+      Serial.println("m");
+
+      Serial.println(" gota: ");
+      Serial.println(gota);
+
+      Serial.println(" IMU: ");
+      Serial.print(" AX: ");
+      Serial.print(myIMU.readAccelX(), 4);
+      Serial.print(" AY: ");
+      Serial.print(myIMU.readAccelY(), 4);
+      Serial.print(" AZ: ");
+      Serial.print(myIMU.readAccelZ(), 4);
+
+      Serial.print(" MX: ");
+      Serial.print(myIMU.readMagX(), 4);
+      Serial.print(" MY: ");
+      Serial.print(myIMU.readMagY(), 4);
+      Serial.print(" MZ: ");
+      Serial.print(myIMU.readMagZ(), 4);
+
+      Serial.print(" Tem3: ");
+      Serial.println(myIMU.readTempC(), 4);
+    }
+  }
 
   guardarStringSD(datos, "d");
 
   // Mostramos informacion por LCD
-  
+
   // Esperamos a que pase un segundo para iniciar nueva captura:
   while (tiempoA + 999 >= millis()) {}
   tiempoA = millis();
@@ -318,13 +319,14 @@ void read_gps() {
   int valid_pos = 0;
   uint32_t timeout = millis();
   char lecturagps;
-  Serial.println("RGPS");
+  if (!meteoroPI)Serial.println("RGPS");
   gps_reset_parser();
 
   do {
     if (Serial1.available()) {
       lecturagps = Serial1.read();
-      Serial.print(lecturagps);
+
+      if (!meteoroPI)Serial.print(lecturagps);
 
       valid_pos = gps_decode(lecturagps);
     }
@@ -351,18 +353,22 @@ void guardarStringSD(String Datos, String NombreA) {
 
       // print to the serial port too:
       //Serial.print(datos);
-      Serial.print("On: ");
-      Serial.print(nombre);
-      Serial.print(": ");
-      Serial.print(Datos);
+      if (!meteoroPI) {
+        Serial.print("On: ");
+        Serial.print(nombre);
+        Serial.print(": ");
+        Serial.print(Datos);
+      }
       //pitar(50);   //Pitido indicando que se guardo correctamente la informacion
     }
     // if the file isn't open, pop up an error:
     else {
-      Serial.print("error opening:");
-      Serial.println(nombre);
-      dataFile.close();
-      sd_ok =  false;
+      if (!meteoroPI) {
+        Serial.print("error opening:");
+        Serial.println(nombre);
+        dataFile.close();
+        sd_ok =  false;
+      }
     }
 
   } else {

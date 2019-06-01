@@ -22,7 +22,7 @@ void setup() {
 // the loop routine runs over and over again forever:
 void loop() {
   // read the input pin:
-  int buttonState = digitalRead(pinAnemometro);
+  //int buttonState = digitalRead(pinAnemometro);
   // print out the state of the button:
   Serial.println(periodoAne);
   delay(1);        // delay in between reads for stability

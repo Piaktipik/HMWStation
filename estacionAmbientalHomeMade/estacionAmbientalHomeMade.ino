@@ -32,6 +32,17 @@
 #define DEBUG_GPS
 static const uint32_t VALID_POS_TIMEOUT = 2000;  // ms
 
+
+////////////////////////////  Gases
+/* MQ-7 Carbon Monoxide Sensor Circuit with Arduino */
+const int AOUTpin=0;//the AOUT pin of the CO sensor goes into analog pin A0 of the arduino
+const int DOUTpin=48;//the DOUT pin of the CO sensor goes into digital pin D8 of the arduino
+//const int ledPin=13;//the anode of the LED connects to digital pin D13 of the arduino
+
+////////////////////////////  Anemometro
+// Pin 3 conectado a anemometro -> pinAnemometro:
+int pinAnemometro = 3;
+
 ////////////////////////////  LCD
 
 
@@ -51,6 +62,15 @@ unsigned long tiempoA = 0;
 //////////////////////////// SD
 File dataFile;
 bool sd_ok = false;
+
+////////////////////////////  Gases
+int value;
+
+////////////////////////////  Anemometro
+int dirAnemometro = 0;
+// Tiempo entre pulsos del anemometro usado para calcular la velocidad del tiempo medida
+unsigned long tAnemometro = 0;
+float periodoAne = 0;
 
 //////////////////////////// LCD
 
@@ -99,6 +119,17 @@ void setup () {
   delay(50);
   pinMode(gpsRESET_PIN, INPUT);
 
+
+  ///////////////////// Setup Gases
+  pinMode(DOUTpin, INPUT);//sets the pin as an input to the arduino
+  //pinMode(ledPin, OUTPUT);//sets the pin as an output of the arduino
+
+  ///////////////////// Setup Anemometro
+  // make the pinAnemometro's pin an input:
+  pinMode(pinAnemometro, INPUT);
+  // Activamos interrupcion
+  attachInterrupt(digitalPinToInterrupt(pinAnemometro), anemometro, FALLING);
+  
   ///////////////////// Setup LCD
 
 
@@ -177,6 +208,21 @@ void loop() {
   datos += ","; datos += String(myIMU.readMagZ());
   datos += ","; datos += String(myIMU.readTempC());
 
+  //////////////////////////////// Se lee el Anemometro
+  dirAnemometro = analogRead(A2);
+  //Serial.println(dirAnemometro);
+  datos += ","; datos += String(dirAnemometro);
+  datos += ","; datos += String(periodoAne);
+
+  //////////////////////////////// Se lee sensor Gases
+  value = analogRead(AOUTpin); //reads the analaog value from the CO sensor's AOUT pin
+  datos += ","; datos += String(value);
+  //Serial.print("CO value: ");
+  //Serial.println(value);//prints the CO value
+  
+  
+  /////////////////////// Fin captura datos ///////////////////////
+
   // Cambiamos modo de visualizacion
   if (Serial.available() > 1) {
     if (Serial.read() == 'v') {
@@ -235,6 +281,15 @@ void loop() {
       Serial.print("T");
       Serial.println(myIMU.readTempC(), 4);
 
+      Serial.print("D");
+      Serial.println(dirAnemometro); // Direccion Anemometro
+
+      Serial.print("A");
+      Serial.println(periodoAne); // Velocidad Anemometro
+      
+      Serial.print("C");
+      Serial.println(value); // prints the CO value
+
     } else {
       Serial.println("GPS");
       Serial.print("Tiempo: ");
@@ -288,6 +343,16 @@ void loop() {
 
       Serial.print(" Tem3: ");
       Serial.println(myIMU.readTempC(), 4);
+
+      Serial.print("Direccion Anemometro: ");
+      Serial.println(dirAnemometro); 
+
+      Serial.print("Vel Anemometro");
+      Serial.println(periodoAne); // Velocidad Anemometro
+      
+      Serial.print("CO value: ");
+      Serial.println(value);//prints the CO value
+      
     }
   }
 
@@ -298,6 +363,15 @@ void loop() {
   // Esperamos a que pase un segundo para iniciar nueva captura:
   while (tiempoA + 999 >= millis()) {}
   tiempoA = millis();
+} // fin loop
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void anemometro() {
+  periodoAne = float(millis()-tAnemometro);
+  tAnemometro = millis();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
